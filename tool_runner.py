@@ -41,8 +41,8 @@ def process_refund(customer_id: str, order_id: str, amount: float,
                 "message": (
                     f"Customer ID mismatch. The verified customer in this session is "
                     f"{session_state['verified_customer_id']} but the refund request "
-                    f"is for {customer_id}. Do not process this refund. Verify you "
-                    f"have the correct customer before continuing."
+                    f"is for {customer_id}. Attempted amount: {amount}. Do not process "
+                    f"this refund. Verify you have the correct customer before continuing."
                 )
             }
         })
@@ -122,8 +122,16 @@ def get_customer(query: str,session_state:dict) -> str:
             session_state["verified_customer_id"] = customer["customer_id"]
             session_state["verified_customer_name"] = customer["name"]
 
-            # Return the matched customer as a JSON string
-            return json.dumps(customer)
+            # Return only the fields the agent needs: identity/contact info
+            # plus order IDs (required by lookup_order's workflow). Internal
+            # metadata like member_since/total_orders is left out.
+            return json.dumps({
+                "customer_id": customer["customer_id"],
+                "name": customer["name"],
+                "email": customer["email"],
+                "account_status": customer["account_status"],
+                "orders": customer["orders"]
+            })
         
     # No match found — return a structured validation error.
     # retryable: False because sending the same query again won't help.

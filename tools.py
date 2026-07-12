@@ -6,8 +6,8 @@ tools = [
         "description": (
             "Look up a customer record by name, email address, or customer ID. "
             "Use this tool when you need to verify who you are speaking with or "
-            "retrieve account information. Returns the customer's full profile "
-            "including account status, contact details, and a list of their order IDs. "
+            "retrieve account information. Returns the customer_id, name, email, "
+            "account_status, and a list of their order IDs. "
             "Do not use this tool to look up order details — use lookup_order for that." # The phrase "Do not use this tool to look up order details, use lookup_order for that" in get_customer is the most important line in the file. Without this, when a customer gives both their name and an order number in the same message, Claude has to infer which tool handles order lookups. With this line, it knows explicitly. The negative guidance removes the ambiguity that causes misrouting, it's not enough to say what a tool does, you also need to say what it doesn't do when there's a similar tool nearby.
         ),
         "input_schema": {

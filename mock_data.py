@@ -49,5 +49,19 @@ ORDERS = {
         "carrier": "FedEx",
         "tracking_number": "FX-442819203",
         "notes": None
+    },
+    "ORD-8888": {
+        "order_id": "ORD-8888",
+        "customer_id": "CUST-8888",
+        "status": "pending",
+        "items": [
+            {"product": "TV 99'", "quantity": 2, "price": 349.99}
+        ],
+        "placed_at": "2026-07-12T19:30:00Z",
+        "estimated_ship_date": "2026-07-16T00:00:00Z",
+        "actual_ship_date": None,
+        "carrier": "AMPM",
+        "tracking_number": "TK-12345678",
+        "notes": None
     }
 }

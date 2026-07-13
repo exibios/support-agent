@@ -29,8 +29,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          PRIOR=$(gh pr view $PR_NUMBER --json comments \\
-            --jq '[.comments[] | select(.body | contains("**Claude Code Review**")) | .body] | join("\\n\\n---\\n\\n")')
+          PRIOR=$(gh pr view $PR_NUMBER --json comments \
+            --jq '[.comments[] | select(.body | contains("**Claude Code Review**")) | .body] | join("\n\n---\n\n")')
           echo "$PRIOR" > prior_comments.txt
           if [ -z "$PRIOR" ]; then
             echo "has_prior=false" >> $GITHUB_OUTPUT
@@ -60,9 +60,9 @@ jobs:
           $DIFF_CONTENT"
           fi
 
-          claude -p "$PROMPT" \\
-            --output-format json \\
-            --json-schema .claude/review-schema.json \\
+          claude -p "$PROMPT" \
+            --output-format json \
+            --json-schema "$(cat .claude/review-schema.json)" \
             > review_output.json
 
       - name: Post findings
@@ -84,7 +84,7 @@ jobs:
             SUGGESTION=$(echo $finding | jq -r '.suggestion')
             LINE=$(echo $finding | jq -r '.line // "N/A"')
 
-            gh pr comment $PR_NUMBER --body "**[$SEVERITY] $CATEGORY**, \\`$FILE\\` (line $LINE)
+            gh pr comment $PR_NUMBER --body "**[$SEVERITY] $CATEGORY**, \`$FILE\` (line $LINE)
 
           $DESCRIPTION
 

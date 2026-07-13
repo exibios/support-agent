@@ -21,49 +21,61 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code
 
       - name: Get PR diff
-        id: diff
+        run: git diff origin/${{ github.base_ref }}...HEAD > pr_diff.txt
+
+      - name: Get existing review comments
+        id: prior_comments
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # Fetch the diff between this branch and the base branch
-          git diff origin/${{ github.base_ref }}...HEAD > pr_diff.txt
-          echo "Diff saved to pr_diff.txt"
+          PRIOR=$(gh pr view $PR_NUMBER --json comments \\
+            --jq '[.comments[] | select(.body | contains("**Claude Code Review**")) | .body] | join("\\n\\n---\\n\\n")')
+          echo "$PRIOR" > prior_comments.txt
+          if [ -z "$PRIOR" ]; then
+            echo "has_prior=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_prior=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Run Claude review
         id: review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          # Run Claude Code non-interactively with structured output.
-          # The -p flag is what makes it exit cleanly rather than waiting for input.
-          # We pass the diff as context by including it in the prompt.
           DIFF_CONTENT=$(cat pr_diff.txt)
+          PRIOR_COMMENTS=$(cat prior_comments.txt)
 
-          claude -p "Review this pull request diff for bugs, security vulnerabilities,
-          missing error handling, and violations of our architecture conventions.
-          Focus on real issues, skip style preferences and things the linter handles.
+          if [ "${{ steps.prior_comments.outputs.has_prior }}" = "true" ]; then
+            PROMPT="Review this PR diff. Only report NEW issues or issues from the list below that are STILL PRESENT in the current code. Do not re-report fixed issues.
 
-          PR diff:
-          $DIFF_CONTENT" \\
+          PREVIOUSLY REPORTED:
+          $PRIOR_COMMENTS
+
+          CURRENT DIFF:
+          $DIFF_CONTENT"
+          else
+            PROMPT="Review this PR diff for bugs, security vulnerabilities, missing error handling, and architecture violations. Skip style issues the linter handles.
+
+          $DIFF_CONTENT"
+          fi
+
+          claude -p "$PROMPT" \\
             --output-format json \\
             --json-schema .claude/review-schema.json \\
             > review_output.json
 
-      - name: Post findings as PR comments
+      - name: Post findings
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # Parse the structured JSON output and post each finding as a comment.
-          # jq lets us extract the findings array and loop over each entry.
-
           SUMMARY=$(cat review_output.json | jq -r '.structured_output.summary')
-          FINDINGS=$(cat review_output.json | jq -r '.structured_output.findings[]')
 
-          # Post the overall summary first
           gh pr comment $PR_NUMBER --body "**Claude Code Review**
 
           $SUMMARY"
 
-          # Post each finding as a separate comment
           cat review_output.json | jq -c '.structured_output.findings[]' | while read finding; do
             FILE=$(echo $finding | jq -r '.file')
             SEVERITY=$(echo $finding | jq -r '.severity')
@@ -72,7 +84,7 @@ jobs:
             SUGGESTION=$(echo $finding | jq -r '.suggestion')
             LINE=$(echo $finding | jq -r '.line // "N/A"')
 
-            gh pr comment $PR_NUMBER --body "**[$SEVERITY] $CATEGORY**, \`$FILE\` (line $LINE)
+            gh pr comment $PR_NUMBER --body "**[$SEVERITY] $CATEGORY**, \\`$FILE\\` (line $LINE)
 
           $DESCRIPTION
 

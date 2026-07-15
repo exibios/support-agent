@@ -66,7 +66,7 @@ jobs:
             cat pr_diff.txt >> prompt.txt
           fi
 
-          claude -p "$(cat prompt.txt)" \
+          npx @anthropic-ai/claude-code -p "$(cat prompt.txt)" \
             --output-format json \
             --json-schema "$(cat .claude/review-schema.json)" \
             > review_output.json

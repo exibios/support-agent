@@ -66,10 +66,16 @@ jobs:
             cat pr_diff.txt >> prompt.txt
           fi
 
+          # Check if schema file exists
+          if [ ! -f ".claude/review-schema.json" ]; then
+            echo "Error: .claude/review-schema.json not found"
+            exit 1
+          fi
+
           npx @anthropic-ai/claude-code -p "$(cat prompt.txt)" \
             --output-format json \
             --json-schema "$(cat .claude/review-schema.json)" \
-            > review_output.json
+            > review_output.json || { echo "Claude review failed"; cat review_output.json; exit 1; }
 
       - name: Post findings
         env:

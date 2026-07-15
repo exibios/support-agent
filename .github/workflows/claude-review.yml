@@ -48,21 +48,21 @@ jobs:
 
           if [ "${{ steps.prior_comments.outputs.has_prior }}" = "true" ]; then
             cat > prompt.txt <<'EOF'
-Review this PR diff. Only report NEW issues or issues from the list below that are STILL PRESENT in the current code. Do not re-report fixed issues.
+          Review this PR diff. Only report NEW issues or issues from the list below that are STILL PRESENT in the current code. Do not re-report fixed issues.
 
-PREVIOUSLY REPORTED:
-EOF
+          PREVIOUSLY REPORTED:
+          EOF
             cat prior_comments.txt >> prompt.txt
             cat >> prompt.txt <<'EOF'
 
-CURRENT DIFF:
-EOF
+          CURRENT DIFF:
+          EOF
             cat pr_diff.txt >> prompt.txt
           else
             cat > prompt.txt <<'EOF'
-Review this PR diff for bugs, security vulnerabilities, missing error handling, and architecture violations. Skip style issues the linter handles.
+          Review this PR diff for bugs, security vulnerabilities, missing error handling, and architecture violations. Skip style issues the linter handles.
 
-EOF
+          EOF
             cat pr_diff.txt >> prompt.txt
           fi
 
@@ -78,21 +78,18 @@ EOF
         run: |
           SUMMARY=$(cat review_output.json | jq -r '.structured_output.summary')
 
-          gh pr comment $PR_NUMBER --body "**Claude Code Review**
+          SUMMARY_BODY=$(printf '**Claude Code Review**\n\n%s' "$SUMMARY")
+          gh pr comment "$PR_NUMBER" --body "$SUMMARY_BODY"
 
-          $SUMMARY"
+          cat review_output.json | jq -c '.structured_output.findings[]' | while read -r finding; do
+            FILE=$(echo "$finding" | jq -r '.file')
+            SEVERITY=$(echo "$finding" | jq -r '.severity')
+            CATEGORY=$(echo "$finding" | jq -r '.category')
+            DESCRIPTION=$(echo "$finding" | jq -r '.description')
+            SUGGESTION=$(echo "$finding" | jq -r '.suggestion')
+            LINE=$(echo "$finding" | jq -r '.line // "N/A"')
 
-          cat review_output.json | jq -c '.structured_output.findings[]' | while read finding; do
-            FILE=$(echo $finding | jq -r '.file')
-            SEVERITY=$(echo $finding | jq -r '.severity')
-            CATEGORY=$(echo $finding | jq -r '.category')
-            DESCRIPTION=$(echo $finding | jq -r '.description')
-            SUGGESTION=$(echo $finding | jq -r '.suggestion')
-            LINE=$(echo $finding | jq -r '.line // "N/A"')
-
-            gh pr comment $PR_NUMBER --body "**[$SEVERITY] $CATEGORY**, \`$FILE\` (line $LINE)
-
-          $DESCRIPTION
-
-          **Suggested fix:** $SUGGESTION"
+            FINDING_BODY=$(printf '**[%s] %s**, `%s` (line %s)\n\n%s\n\n**Suggested fix:** %s' \
+              "$SEVERITY" "$CATEGORY" "$FILE" "$LINE" "$DESCRIPTION" "$SUGGESTION")
+            gh pr comment "$PR_NUMBER" --body "$FINDING_BODY"
           done

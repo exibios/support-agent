@@ -50,9 +50,9 @@ ORDERS = {
         "tracking_number": "FX-442819203",
         "notes": None
     },
-    "ORD-1111": {
-        "order_id": "ORD-1111",
-        "customer_id": "CUST-1111",
+    "ORD-2222": {
+        "order_id": "ORD-2222",
+        "customer_id": "CUST-2222",
         "status": "pending",
         "items": [
             {"product": "TV 99'", "quantity": 2, "price": 349.99}

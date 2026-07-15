@@ -47,20 +47,26 @@ jobs:
           PRIOR_COMMENTS=$(cat prior_comments.txt)
 
           if [ "${{ steps.prior_comments.outputs.has_prior }}" = "true" ]; then
-            PROMPT="Review this PR diff. Only report NEW issues or issues from the list below that are STILL PRESENT in the current code. Do not re-report fixed issues.
+            cat > prompt.txt <<'EOF'
+Review this PR diff. Only report NEW issues or issues from the list below that are STILL PRESENT in the current code. Do not re-report fixed issues.
 
-          PREVIOUSLY REPORTED:
-          $PRIOR_COMMENTS
+PREVIOUSLY REPORTED:
+EOF
+            cat prior_comments.txt >> prompt.txt
+            cat >> prompt.txt <<'EOF'
 
-          CURRENT DIFF:
-          $DIFF_CONTENT"
+CURRENT DIFF:
+EOF
+            cat pr_diff.txt >> prompt.txt
           else
-            PROMPT="Review this PR diff for bugs, security vulnerabilities, missing error handling, and architecture violations. Skip style issues the linter handles.
+            cat > prompt.txt <<'EOF'
+Review this PR diff for bugs, security vulnerabilities, missing error handling, and architecture violations. Skip style issues the linter handles.
 
-          $DIFF_CONTENT"
+EOF
+            cat pr_diff.txt >> prompt.txt
           fi
 
-          claude -p "$PROMPT" \
+          claude -p "$(cat prompt.txt)" \
             --output-format json \
             --json-schema "$(cat .claude/review-schema.json)" \
             > review_output.json
